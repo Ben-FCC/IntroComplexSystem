@@ -4,5 +4,5 @@ Just conduct following steps.
 ```bash
 git clone thisrepo # if you have not clone it.
 cd this repo/homeworks/HW1/scripts/Q4.6
-python plotting.py
+python Plotting.py
 cd ../../simulation_figures/Q4.6 # the simulated results will be plotted here.
