@@ -63,6 +63,7 @@ runs = 100
 # Run the Monte Carlo simulation
 results_burned_area, results_stop_time = monte_carlo_simulation(size, p_values, steps, runs)
 
+sns.set_context('talk')
 # Plotting one trial of CA spatial simulations per p for comparison
 def plot_one_trial_per_p(size, p_values):
     cmap = plt.cm.get_cmap('gray', 4)  # Create a colormap with 4 colors

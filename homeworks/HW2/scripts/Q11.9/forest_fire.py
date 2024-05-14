@@ -69,12 +69,15 @@ results_burned_area, results_stop_time = monte_carlo_simulation(size, p_values, 
 df_burned_area = pd.DataFrame(results_burned_area, columns=['p', 'burned_area'])
 df_stop_time = pd.DataFrame(results_stop_time, columns=['p', 'stop_time'])
 
+sns.set_context('talk')
+
 # Plot the results for burned area
 plt.figure(figsize=(10, 6))
 sns.lineplot(x='p', y='burned_area', data=df_burned_area, ci=95)
 plt.xlabel('Probability of tree presence (p)')
 plt.ylabel('Average burned area')
 plt.title('Average burned area as a function of p with 95% CI')
+plt.tight_layout()
 plt.savefig('../../simulation_figures/Q11.9/burned area.png')
 
 # Plot the results for stop time
@@ -83,6 +86,7 @@ sns.lineplot(x='p', y='stop_time', data=df_stop_time, ci=95)
 plt.xlabel('Probability of tree presence (p)')
 plt.ylabel('Time until fire stops')
 plt.title('Time until fire stops as a function of p with 95% CI')
+plt.tight_layout()
 plt.savefig('../../simulation_figures/Q11.9/time_stop.png')
 
 # Compare the final results for different values of p
