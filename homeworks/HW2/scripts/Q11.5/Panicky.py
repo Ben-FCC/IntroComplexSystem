@@ -49,7 +49,7 @@ class Panicky_Agent(object):
                         for dy in [-r, 0, r]:
                             if self.config[(x + dx) % n, (y + dy) % n] == s:
                                 count[s] += 1
-                self.nextconfig[x, y] = argmax(count)
+                self.nextconfig[x, y] = 1 if count[1] >= 4 else 0
         self.config, self.nextconfig = self.nextconfig, self.config
 
 
