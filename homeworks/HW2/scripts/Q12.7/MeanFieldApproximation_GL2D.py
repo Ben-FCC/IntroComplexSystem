@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 def MeanFieldApproximation_GL2D(p):
-    return -84*p**8 + 392*p**7 - 700*p**6 + 560*p**5 - 140*p**4 - 56*p**3 + 28*p**2
+    return p * (28 * p**2 * (1 - p)**6 + 56 * p**3 * (1 - p)**5) + (1 - p) * (56 * p**3 * (1 - p)**5)
 
 # Parameters for cobweb plot
 p_min, p_max = 0, 1
