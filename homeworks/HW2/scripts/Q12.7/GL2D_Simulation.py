@@ -60,7 +60,7 @@ for p0 in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
     plt.plot(range(iterations), mfa_values, label='Mean Field Approximation', linestyle='--')
     plt.xlabel('Iterations')
     plt.ylabel('Average Density')
-    plt.title('Comparison of Mean Field Approximation and Simulation with 95% CI')
+    plt.title(f'Comparison of Mean Field Approximation and Simulation with 95% CI\np0 = {p0}')
     plt.legend()
     plt.tight_layout()
     plt.savefig(f'../../simulation_figures/Q12.7/MeanFieldApproximation_vs_Simulation_p0={p0}.png')
