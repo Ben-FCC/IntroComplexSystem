@@ -1,7 +1,9 @@
 from social_model import SocialModel
 from mesa.visualization.modules import CanvasGrid
 from mesa.visualization.ModularVisualization import ModularServer
+import networkx as nx
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 # 定義每個代理的呈現方式
 def agent_portrayal(agent):
@@ -23,36 +25,36 @@ server = ModularServer(
     SocialModel,
     [grid],
     "Social Model",
-    {"N": 10, "width": 10, "height": 10}
+    {"N": 10, "width": 10, "height": 10, "alpha": 0.1}
 )
 
-# 運行伺服器
-server.port = 8521  # The default
-server.launch()
+# 動態可視化設置
+fig, ax = plt.subplots(figsize=(10, 10))
 
-# 進行數據收集和模擬運行
-model = SocialModel(10, 10, 10)
-for i in range(100):
+def update(num, model, G, ax):
+    ax.clear()
     model.step()
+    
+    # 清除之前的邊
+    G.clear_edges()
+    
+    # 添加新的邊
+    for agent in model.schedule.agents:
+        for friend in agent.friends:
+            G.add_edge(agent.unique_id, friend.unique_id)
+    
+    # 繪製網絡圖
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, with_labels=True, node_size=500, node_color="skyblue", font_size=10, font_color="black", font_weight="bold", edge_color="gray", ax=ax)
+    ax.set_title(f'Step {num}')
 
-# 收集數據
-data = model.datacollector.get_agent_vars_dataframe()
-print(data)
+# 初始化模型和圖
+model = SocialModel(10, 10, 10, alpha=0.1)
+G = nx.Graph()
+for agent_id in range(model.num_agents):
+    G.add_node(agent_id)
 
-# 視覺化代理位置和友誼
-positions = data.xs(99, level="Step")["Position"]
-friends = data.xs(99, level="Step")["Friends"]
+# 創建動畫
+ani = animation.FuncAnimation(fig, update, frames=100, fargs=(model, G, ax), interval=200, repeat=False)
 
-plt.figure(figsize=(10, 10))
-plt.xlim(0, 10)
-plt.ylim(0, 10)
-
-for i, pos in enumerate(positions):
-    plt.scatter(pos[0], pos[1], s=100)
-    plt.text(pos[0], pos[1], f"{friends[i]}", fontsize=12, ha='right')
-
-plt.title('Agent Positions and Friendships')
-plt.xlabel('X')
-plt.ylabel('Y')
-plt.grid(True)
 plt.show()

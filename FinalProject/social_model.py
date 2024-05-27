@@ -1,24 +1,25 @@
 from mesa import Model
-from mesa.time import RandomActivation
 from mesa.space import MultiGrid
-from mesa.datacollection import DataCollector
+from mesa.time import RandomActivation
 from social_agent import SocialAgent
+from mesa.datacollection import DataCollector
 
 class SocialModel(Model):
-    def __init__(self, N, width, height):
+    def __init__(self, N, width, height, alpha=0.1):
         self.num_agents = N
         self.grid = MultiGrid(width, height, True)
         self.schedule = RandomActivation(self)
-        self.datacollector = DataCollector(
-            agent_reporters={"Position": "pos", "Speed": "speed", "Personality": "personality", "Friends": lambda a: len(a.friends)}
-        )
+        self.alpha = alpha
 
+        # Create agents
         for i in range(self.num_agents):
-            agent = SocialAgent(i, self)
-            self.schedule.add(agent)
-            x = self.random.randrange(self.grid.width)
-            y = self.random.randrange(self.grid.height)
-            self.grid.place_agent(agent, (x, y))
+            a = SocialAgent(i, self, alpha=self.alpha)
+            self.schedule.add(a)
+            self.grid.place_agent(a, (self.random.randrange(self.grid.width), self.random.randrange(self.grid.height)))
+
+        self.datacollector = DataCollector(
+            agent_reporters={"Position": "pos", "Friends": lambda a: len(a.friends)}
+        )
 
     def step(self):
         self.datacollector.collect(self)

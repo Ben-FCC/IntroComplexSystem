@@ -1,11 +1,15 @@
 from mesa import Agent
+import numpy as np
 import random
 from personality import Personality
 
 class SocialAgent(Agent):
-    def __init__(self, unique_id, model):
+    def __init__(self, unique_id, model, alpha=0.1):
         super().__init__(unique_id, model)
+        self.pos = (random.randrange(model.grid.width), random.randrange(model.grid.height))
         self.speed = random.random()
+        self.velocity = np.array([random.uniform(-1, 1), random.uniform(-1, 1)])
+        self.velocity = self.velocity / np.linalg.norm(self.velocity) * self.speed
         self.personality = Personality(
             openness=random.random(),
             conscientiousness=random.random(),
@@ -14,6 +18,7 @@ class SocialAgent(Agent):
             neuroticism=random.random()
         )
         self.friends = []
+        self.alpha = alpha
 
     def step(self):
         # 基於個性和其他因素移動
@@ -23,10 +28,31 @@ class SocialAgent(Agent):
         self.interact_with_others()
 
     def move(self):
-        # 基於個性和速度移動
-        possible_steps = self.model.grid.get_neighborhood(self.pos, moore=True, include_center=False)
-        new_position = self.random.choice(possible_steps)
+        # 基於速度方向移動
+        new_position = np.array(self.pos) + self.velocity
+
+        # 添加朋友位置的社會重力效應
+        social_gravity_force = np.array([0.0, 0.0])
+        for friend in self.friends:
+            distance_vector = np.array(friend.pos) - np.array(self.pos)
+            distance = np.linalg.norm(distance_vector)
+            if distance > 0:  # 避免除以零
+                social_gravity_force += self.alpha * self.personality.extraversion * distance_vector / (distance ** 2)
+        
+        self.velocity += social_gravity_force
+        self.velocity = self.velocity / np.linalg.norm(self.velocity) * self.speed
+
+        new_position = new_position + social_gravity_force
+        new_position = np.mod(new_position, [self.model.grid.width, self.model.grid.height])
+        new_position = (int(new_position[0]), int(new_position[1]))
         self.model.grid.move_agent(self, new_position)
+        self.pos = new_position
+
+        # 添加隨機變動以模擬真實運動
+        angle_change = random.uniform(-np.pi / 4, np.pi / 4)
+        rotation_matrix = np.array([[np.cos(angle_change), -np.sin(angle_change)],
+                                    [np.sin(angle_change), np.cos(angle_change)]])
+        self.velocity = np.dot(self.velocity, rotation_matrix)
 
     def interact_with_others(self):
         cellmates = self.model.grid.get_cell_list_contents([self.pos])
