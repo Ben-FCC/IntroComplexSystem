@@ -1,60 +1,41 @@
-from social_model import SocialModel
-from mesa.visualization.modules import CanvasGrid
-from mesa.visualization.ModularVisualization import ModularServer
-import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import networkx as nx
+from social_model import SocialModel
 
-# 定義每個代理的呈現方式
-def agent_portrayal(agent):
-    portrayal = {
-        "Shape": "circle",
-        "Filled": "true",
-        "r": 0.5,
-        "Color": "red",
-        "Layer": 0,
-        "text": f"{len(agent.friends)}",
-        "text_color": "white"
-    }
-    return portrayal
-
-# 視覺化參數設置
-grid = CanvasGrid(agent_portrayal, 10, 10, 500, 500)
-
-server = ModularServer(
-    SocialModel,
-    [grid],
-    "Social Model",
-    {"N": 10, "width": 10, "height": 10, "alpha": 0.1}
-)
-
-# 動態可視化設置
-fig, ax = plt.subplots(figsize=(10, 10))
-
-def update(num, model, G, ax):
+def draw_network(G, pos, ax, width, height):
     ax.clear()
+    # 设置节点的颜色和大小
+    node_color = 'skyblue'
+    node_size = 300
+
+    # 绘制节点和边
+    nx.draw_networkx_nodes(G, pos, ax=ax, node_size=node_size, node_color=node_color, alpha=0.9, edgecolors='black')
+    nx.draw_networkx_edges(G, pos, ax=ax, alpha=0.5, edge_color='gray')
+    nx.draw_networkx_labels(G, pos, ax=ax, font_size=10)
+
+    # 设置轴的范围
+    ax.set_xlim(-1, width + 1)
+    ax.set_ylim(-1, height + 1)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title('Social Network of Agents')
+
+def update(frame, model, ax):
     model.step()
-    
-    # 清除之前的邊
-    G.clear_edges()
-    
-    # 添加新的邊
+    G = nx.Graph()
+    pos = {}
     for agent in model.schedule.agents:
+        G.add_node(agent.unique_id)
+        pos[agent.unique_id] = (agent.pos[0], agent.pos[1])  # 使用代理的实际位置作为节点位置
         for friend in agent.friends:
             G.add_edge(agent.unique_id, friend.unique_id)
-    
-    # 繪製網絡圖
-    pos = nx.spring_layout(G)
-    nx.draw(G, pos, with_labels=True, node_size=500, node_color="skyblue", font_size=10, font_color="black", font_weight="bold", edge_color="gray", ax=ax)
-    ax.set_title(f'Step {num}')
+    draw_network(G, pos, ax, model.grid.width, model.grid.height)
 
-# 初始化模型和圖
-model = SocialModel(10, 10, 10, alpha=0.1)
-G = nx.Graph()
-for agent_id in range(model.num_agents):
-    G.add_node(agent_id)
+# 初始化模型和图形
+model = SocialModel(N=100, width=100, height=100, alpha=0.5, max_speed=3.0)
+fig, ax = plt.subplots(figsize=(10, 10))
 
-# 創建動畫
-ani = animation.FuncAnimation(fig, update, frames=100, fargs=(model, G, ax), interval=200, repeat=False)
-
+# 创建动画
+ani = animation.FuncAnimation(fig, update, frames=100, fargs=(model, ax), interval=200, repeat=False)
 plt.show()

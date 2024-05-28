@@ -5,17 +5,20 @@ from social_agent import SocialAgent
 from mesa.datacollection import DataCollector
 
 class SocialModel(Model):
-    def __init__(self, N, width, height, alpha=0.1):
+    def __init__(self, N, width, height, alpha=0.1, max_speed=3.0):
         self.num_agents = N
         self.grid = MultiGrid(width, height, True)
         self.schedule = RandomActivation(self)
         self.alpha = alpha
+        self.max_speed = max_speed
 
         # Create agents
         for i in range(self.num_agents):
-            a = SocialAgent(i, self, alpha=self.alpha)
+            a = SocialAgent(i, self, alpha=self.alpha, max_speed=self.max_speed)
             self.schedule.add(a)
-            self.grid.place_agent(a, (self.random.randrange(self.grid.width), self.random.randrange(self.grid.height)))
+            x = self.random.randrange(self.grid.width)
+            y = self.random.randrange(self.grid.height)
+            self.grid.place_agent(a, (x, y))
 
         self.datacollector = DataCollector(
             agent_reporters={"Position": "pos", "Friends": lambda a: len(a.friends)}
