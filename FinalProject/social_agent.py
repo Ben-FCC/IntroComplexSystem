@@ -4,20 +4,24 @@ import random
 from personality import Personality
 
 class SocialAgent(Agent):
-    def __init__(self, unique_id, model, alpha=0.1, max_speed=3.0):
+    def __init__(self, unique_id, model, alpha=0.1, max_speed=3.0, break_prob=0.05, phi=0.4):
         super().__init__(unique_id, model)
         self.pos = (random.randrange(model.grid.width), random.randrange(model.grid.height))
-        self.speed = random.random()
+
+        # 初始速度符合正态分布，均值为1，标准差为1，且限制在0到max_speed之间
+        self.speed = np.clip(np.abs(np.random.normal(1, 1)), 0, max_speed)
         self.velocity = np.array([random.uniform(-1, 1), random.uniform(-1, 1)])
         self.velocity = self.velocity / np.linalg.norm(self.velocity) * self.speed
 
         # 生成符合正态分布的性格特征，且外向性和开放性之间有大约0.4的相关系数
         personality_traits = self.generate_personality_traits()
         self.personality = Personality(*personality_traits)
-        
+
         self.friends = []
         self.alpha = alpha
         self.max_speed = max_speed  # 速度上限
+        self.break_prob = break_prob  # 友谊断裂概率
+        self.phi = phi  # 控制友谊形成概率的系数
 
     def generate_personality_traits(self):
         mean = [0, 0, 0, 0, 0]
@@ -40,6 +44,9 @@ class SocialAgent(Agent):
 
         # 与其他代理互动
         self.interact_with_others()
+
+        # 检查并断开友谊
+        self.break_friendships()
 
     def move(self):
         # 基于速度方向移动
@@ -80,24 +87,28 @@ class SocialAgent(Agent):
         self.pos = new_position
 
     def interact_with_others(self):
-        cellmates = self.model.grid.get_cell_list_contents([self.pos])
-        for agent in cellmates:
+        # 获取所有代理
+        all_agents = self.model.schedule.agents
+        for agent in all_agents:
             if agent != self:
                 self.form_friendship(agent)
 
     def form_friendship(self, other_agent):
-        # 根据性格形成友谊
-        if other_agent not in self.friends:
-            similarity = self.personality_similarity(other_agent)
-            if similarity > 0.5:  # 假设相似度超过0.5会成为朋友
-                self.friends.append(other_agent)
-                other_agent.friends.append(self)
+        # 根据距离形成友谊
+        distance_vector = np.array(other_agent.pos) - np.array(self.pos)
+        distance = np.linalg.norm(distance_vector)
+        if distance > 0:  # 避免除以零
+            # 与距离平方成反比的概率形成友谊，受 phi 控制
+            probability = self.phi / (distance ** 2)
+            if random.random() < probability:
+                if other_agent not in self.friends:
+                    self.friends.append(other_agent)
+                if self not in other_agent.friends:
+                    other_agent.friends.append(self)
 
-    def personality_similarity(self, other_agent):
-        p1 = self.personality
-        p2 = other_agent.personality
-        return 1 - (abs(p1.openness - p2.openness) +
-                    abs(p1.conscientiousness - p2.conscientiousness) +
-                    abs(p1.extraversion - p2.extraversion) +
-                    abs(p1.agreeableness - p2.agreeableness) +
-                    abs(p1.neuroticism - p2.neuroticism)) / 5
+    def break_friendships(self):
+        for friend in self.friends[:]:  # 使用副本来避免在遍历时修改列表
+            if random.random() < self.break_prob:
+                self.friends.remove(friend)
+                if self in friend.friends:
+                    friend.friends.remove(self)
