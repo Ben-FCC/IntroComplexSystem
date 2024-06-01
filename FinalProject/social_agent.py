@@ -4,7 +4,7 @@ import random
 from personality import Personality
 
 class SocialAgent(Agent):
-    def __init__(self, unique_id, model, alpha=0.1, max_speed=3.0, break_prob=0.05, phi=0.4):
+    def __init__(self, unique_id, model, alpha=0.1, max_speed=3.0, break_prob=0.05, phi=0.01):
         super().__init__(unique_id, model)
         self.pos = (random.randrange(model.grid.width), random.randrange(model.grid.height))
 
@@ -13,24 +13,24 @@ class SocialAgent(Agent):
         self.velocity = np.array([random.uniform(-1, 1), random.uniform(-1, 1)])
         self.velocity = self.velocity / np.linalg.norm(self.velocity) * self.speed
 
-        # 生成符合正态分布的性格特征，且外向性和开放性之间有大约0.4的相关系数
+        # 生成符合正态分布的性格特征，使用新的协方差矩阵
         personality_traits = self.generate_personality_traits()
         self.personality = Personality(*personality_traits)
 
         self.friends = []
         self.alpha = alpha
         self.max_speed = max_speed  # 速度上限
-        self.break_prob = break_prob  # 友谊断裂概率
+        self.break_prob = break_prob  # 友谊断裂基础概率
         self.phi = phi  # 控制友谊形成概率的系数
 
     def generate_personality_traits(self):
         mean = [0, 0, 0, 0, 0]
         cov = [
-            [1, 0,   0,   0.4, 0],  # 开放性 (Openness)
-            [0, 1,   0,   0,   0],  # 责任心 (Conscientiousness)
-            [0, 0,   1,   0,   0],  # 外向性 (Extraversion)
-            [0.4, 0,  0,  1,   0],  # 宜人性 (Agreeableness)
-            [0, 0,   0,   0,   1]   # 情绪稳定性 (Neuroticism)
+            [1.0, 0.3, 0.4, 0.2, -0.1],  # 开放性 (Openness)
+            [0.3, 1.0, 0.5, 0.4, -0.2],  # 责任心 (Conscientiousness)
+            [0.4, 0.5, 1.0, 0.6, -0.3],  # 外向性 (Extraversion)
+            [0.2, 0.4, 0.6, 1.0, -0.4],  # 宜人性 (Agreeableness)
+            [-0.1, -0.2, -0.3, -0.4, 1.0] # 情绪稳定性 (Neuroticism)
         ]
         traits = np.random.multivariate_normal(mean, cov)
         # 将正态分布数据限制在0到1之间
@@ -107,8 +107,11 @@ class SocialAgent(Agent):
                     other_agent.friends.append(self)
 
     def break_friendships(self):
+        epsilon = 1e-6  # 避免除以零
         for friend in self.friends[:]:  # 使用副本来避免在遍历时修改列表
-            if random.random() < self.break_prob:
+            # 断裂概率与宜人性反比，与各自的神经质成正比
+            break_probability = (self.break_prob * self.personality.neuroticism * friend.personality.neuroticism) / (self.personality.agreeableness * friend.personality.agreeableness + epsilon)
+            if random.random() < break_probability:
                 self.friends.remove(friend)
                 if self in friend.friends:
                     friend.friends.remove(self)
