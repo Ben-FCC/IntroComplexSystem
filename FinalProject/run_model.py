@@ -62,10 +62,10 @@ def plot_personality_network(G, agents, personality_trait, title):
     plt.colorbar(nx.draw_networkx_nodes(G, pos, node_color=node_color, cmap=plt.cm.coolwarm, alpha=0.9), ax=ax, label='Personality Value')
     plt.show()
 
-model = SocialModel(N=100, width=100, height=100, alpha=0.5, max_speed=3.0, break_prob=0.05, phi=0.1)
+model = SocialModel(N=100, width=100, height=100, alpha=0.5, max_speed=3.0, break_prob=0.05, phi=0.2, sphi=0.0)
 
 fig, ax = plt.subplots(figsize=(8, 8))
-ani = animation.FuncAnimation(fig, update, fargs=(model, ax), frames=200, interval=100, repeat=False)
+ani = animation.FuncAnimation(fig, update, fargs=(model, ax), frames=100, interval=100, repeat=False)
 plt.show()
 
 # 生成最终的网络图
