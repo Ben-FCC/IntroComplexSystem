@@ -82,6 +82,7 @@ def calculate_clustering_coefficient(model):
     local_clustering = nx.average_clustering(G)
     global_clustering = nx.transitivity(G)
     return local_clustering, global_clustering
+model = SocialModel(N=100, width=100, height=100, alpha=0.5, max_speed=3.0, break_prob=0.05, phi=0.2, sphi=0.0)
 
 model = SocialModel(N=100, width=100, height=100, alpha=0.5, max_speed=10.0, break_prob=0.1, phi=0.1)
 

@@ -5,7 +5,7 @@ from social_agent import SocialAgent
 from mesa.datacollection import DataCollector
 
 class SocialModel(Model):
-    def __init__(self, N, width, height, alpha=0.1, max_speed=3.0, break_prob=0.05, phi=0.01):
+    def __init__(self, N, width, height, alpha=0.1, max_speed=3.0, break_prob=0.05, phi=0.01, sphi=0.01):
         self.num_agents = N
         self.grid = MultiGrid(width, height, True)
         self.schedule = RandomActivation(self)
@@ -13,10 +13,11 @@ class SocialModel(Model):
         self.max_speed = max_speed
         self.break_prob = break_prob
         self.phi = phi
+        self.sphi = sphi
 
         # Create agents
         for i in range(self.num_agents):
-            a = SocialAgent(i, self, alpha=self.alpha, max_speed=self.max_speed, break_prob=self.break_prob, phi=self.phi)
+            a = SocialAgent(i, self, alpha=self.alpha, max_speed=self.max_speed, break_prob=self.break_prob, phi=self.phi, sphi=self.sphi)
             self.schedule.add(a)
             x = self.random.randrange(self.grid.width)
             y = self.random.randrange(self.grid.height)
