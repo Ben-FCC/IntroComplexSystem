@@ -107,7 +107,8 @@ class SocialAgent(Agent):
 
     def form_friendship(self, other_agent):
         distance_vector = np.array(other_agent.pos) - np.array(self.pos)
-        distance = np.linalg.norm(distance_vector)
+        max_distance = np.linalg.norm([self.model.grid.width, self.model.grid.height])
+        distance = np.linalg.norm(distance_vector)/max_distance
         if distance > 0:
             #social_distance = self.calculate_social_distance(other_agent)
             personality_distance = self.calculate_personality_distance(other_agent)
