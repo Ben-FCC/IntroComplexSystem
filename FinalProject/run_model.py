@@ -4,8 +4,10 @@ import networkx as nx
 from social_model import SocialModel
 import numpy as np
 from scipy.stats import spearmanr
+import seaborn as sns
+import pandas as pd
 
-def draw_network(G, pos, ax, grid_width, grid_height):
+def draw_network(G, pos, ax, grid_width, grid_height, finished_percent):
     ax.clear()
     node_color = 'skyblue'
     node_size = 300
@@ -16,19 +18,26 @@ def draw_network(G, pos, ax, grid_width, grid_height):
     ax.set_ylim(-1, grid_height + 1)
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_title('Social Network of Agents')
+    ax.set_title('Social Network of Agents\n' + finished_percent, fontsize=16)
 
-def update(frame, model, ax):
+def update(frame, model, total_frames, ax, plot=False):
     model.step()
-    G = nx.Graph()
-    pos = {}
-    for agent in model.schedule.agents:
-        G.add_node(agent.unique_id)
-        pos[agent.unique_id] = (agent.pos[0], agent.pos[1])
-        for friend in agent.friends:
-            G.add_edge(agent.unique_id, friend.unique_id)
-    draw_network(G, pos, ax, model.grid.width, model.grid.height)
-    return G
+    time_steps.append(frame)
+    finished_percent = f'Finished Percent {frame/total_frames*100:.1f}%'
+    plt.title(finished_percent)
+    local_clustering, global_clustering = calculate_clustering_coefficient(model)
+    local_clustering_values.append(local_clustering)
+    global_clustering_values.append(global_clustering)
+    if plot:
+        G = nx.Graph()
+        pos = {}
+        for agent in model.schedule.agents:
+            G.add_node(agent.unique_id)
+            pos[agent.unique_id] = (agent.pos[0], agent.pos[1])
+            for friend in agent.friends:
+                G.add_edge(agent.unique_id, friend.unique_id)
+        draw_network(G, pos, ax, model.grid.width, model.grid.height, finished_percent)
+        return G, local_clustering, global_clustering
 
 def plot_degree_centrality_distribution(G):
     degree_centrality = nx.degree_centrality(G)
@@ -62,10 +71,39 @@ def plot_personality_network(G, agents, personality_trait, title):
     plt.colorbar(nx.draw_networkx_nodes(G, pos, node_color=node_color, cmap=plt.cm.coolwarm, alpha=0.9), ax=ax, label='Personality Value')
     plt.show()
 
-model = SocialModel(N=100, width=100, height=100, alpha=0.5, max_speed=3.0, break_prob=0.05, phi=0.1)
+def calculate_clustering_coefficient(model):
+    G = nx.Graph()
+    agents = model.schedule.agents
+    for agent in agents:
+        G.add_node(agent.unique_id)
+        for friend in agent.friends:
+            G.add_edge(agent.unique_id, friend.unique_id)
 
+    local_clustering = nx.average_clustering(G)
+    global_clustering = nx.transitivity(G)
+    return local_clustering, global_clustering
+
+model = SocialModel(N=100, width=100, height=100, alpha=0.5, max_speed=10.0, break_prob=0.1, phi=0.1)
+
+sns.set_theme(context='talk', style="whitegrid")
 fig, ax = plt.subplots(figsize=(8, 8))
-ani = animation.FuncAnimation(fig, update, fargs=(model, ax), frames=200, interval=100, repeat=False)
+total_frames = 500
+time_steps = []
+local_clustering_values = []
+global_clustering_values = []
+ani = animation.FuncAnimation(fig, update, fargs=(model, total_frames, ax, True), frames=total_frames, interval=100, repeat=False)
+plt.show()
+
+# Plot clustering coefficient against time steps
+sns.set(style="whitegrid")
+plt.figure(figsize=(10, 6))
+df = pd.DataFrame({'Time Steps': time_steps, 'Local Clustering Coefficient': local_clustering_values, 'Global Clustering Coefficient': global_clustering_values})
+sns.lineplot(x=time_steps, y=local_clustering_values, label="Local Clustering Coefficient", color='deepskyblue', data=df)
+sns.lineplot(x=time_steps, y=global_clustering_values, label="Global Clustering Coefficient", color='red', data=df)
+plt.title('Clustering Coefficient vs Time Steps')
+plt.xlabel('Time Steps')
+plt.ylabel('Clustering Coefficient')
+plt.legend()
 plt.show()
 
 # 生成最终的网络图
