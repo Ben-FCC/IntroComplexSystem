@@ -96,7 +96,8 @@ class SocialAgent(Agent):
     def form_friendship(self, other_agent):
         # 根据距离形成友谊
         distance_vector = np.array(other_agent.pos) - np.array(self.pos)
-        distance = np.linalg.norm(distance_vector)
+        max_distance = np.linalg.norm([self.model.grid.width, self.model.grid.height])
+        distance = np.linalg.norm(distance_vector)/max_distance
         if distance > 0:  # 避免除以零
             # 与距离平方成反比的概率形成友谊，受 phi 控制
             probability = self.phi / (distance ** 2)
@@ -110,7 +111,7 @@ class SocialAgent(Agent):
         epsilon = 1e-6  # 避免除以零
         for friend in self.friends[:]:  # 使用副本来避免在遍历时修改列表
             # 断裂概率与宜人性反比，与各自的神经质成正比
-            break_probability = (self.break_prob * self.personality.neuroticism * friend.personality.neuroticism) / (self.personality.agreeableness * friend.personality.agreeableness + epsilon)
+            break_probability = self.break_prob * ((self.personality.neuroticism + friend.personality.neuroticism) / (self.personality.agreeableness + friend.personality.agreeableness + epsilon))
             if random.random() < break_probability:
                 self.friends.remove(friend)
                 if self in friend.friends:
