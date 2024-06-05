@@ -93,10 +93,10 @@ def run_simulation(total_frames, phi, sphi, gamma):
     return df_clustering, agents_data
 
 def main():
-    total_frames_list = [3000, 5000]
+    total_frames_list = [5000]
     phi_list = [0.0001, 0.001]
-    sphi_list = [0, 0.0001, 0.001]
-    gamma_list = [0, 0.0001, 0.001]
+    sphi_list = [0.0001, 0.001]
+    gamma_list = [0.0001, 0.001]
 
     parameter_combinations = list(itertools.product(total_frames_list, phi_list, sphi_list, gamma_list))
     sns.set_theme('talk', 'whitegrid')
