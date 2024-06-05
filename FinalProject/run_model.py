@@ -1,11 +1,19 @@
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import networkx as nx
 from social_model import SocialModel
 import numpy as np
 from scipy.stats import spearmanr
 import seaborn as sns
 import pandas as pd
+from joblib import Parallel, delayed
+from tqdm import tqdm
+import os
+import warnings
+import itertools
+
+# 创建存储结果的文件夹
+output_dir = "simulation_results"
+os.makedirs(output_dir, exist_ok=True)
 
 def draw_network(G, pos, ax, grid_width, grid_height, finished_percent):
     ax.clear()
@@ -22,12 +30,9 @@ def draw_network(G, pos, ax, grid_width, grid_height, finished_percent):
 
 def update(frame, model, total_frames, ax, plot=False):
     model.step()
-    time_steps.append(frame)
     finished_percent = f'Finished Percent {frame/total_frames*100:.1f}%'
     plt.title(finished_percent)
     local_clustering, global_clustering = calculate_clustering_coefficient(model)
-    local_clustering_values.append(local_clustering)
-    global_clustering_values.append(global_clustering)
     if plot:
         G = nx.Graph()
         pos = {}
@@ -38,38 +43,6 @@ def update(frame, model, total_frames, ax, plot=False):
                 G.add_edge(agent.unique_id, friend.unique_id)
         draw_network(G, pos, ax, model.grid.width, model.grid.height, finished_percent)
         return G, local_clustering, global_clustering
-
-def plot_degree_centrality_distribution(G):
-    degree_centrality = nx.degree_centrality(G)
-    values = list(degree_centrality.values())
-    
-    plt.figure()
-    plt.hist(values, bins=20, color='skyblue', edgecolor='black')  # 直方图
-    plt.title('Degree Centrality Distribution')
-    plt.xlabel('Degree Centrality')
-    plt.ylabel('Frequency')
-    plt.show()
-
-def plot_personality_network(G, agents, personality_trait, title):
-    pos = nx.spring_layout(G, seed=42, k=0.5)  # 使用 spring_layout，并增加 k 值以确保节点分布更加均匀
-    node_color = [getattr(agent.personality, personality_trait) for agent in agents]  # 节点颜色由 personality trait 决定
-    node_size = [300 * np.log1p(len(agent.friends)) for agent in agents]  # 节点大小与 friends 数量的 log 成正比
-
-    # 计算 Spearman 相关系数
-    friends_counts = [len(agent.friends) for agent in agents]
-    personality_values = [getattr(agent.personality, personality_trait) for agent in agents]
-    spearman_corr, _ = spearmanr(friends_counts, personality_values)
-
-    plt.figure(figsize=(10, 10))
-    ax = plt.gca()
-    nx.draw_networkx_nodes(G, pos, ax=ax, node_size=node_size, node_color=node_color, cmap=plt.cm.coolwarm, alpha=0.9, edgecolors='black')
-    nx.draw_networkx_edges(G, pos, ax=ax, alpha=0.5, edge_color='gray')
-    nx.draw_networkx_labels(G, pos, ax=ax, font_size=10)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_title(f'{title} Network (Spearman Corr: {spearman_corr:.2f})')
-    plt.colorbar(nx.draw_networkx_nodes(G, pos, node_color=node_color, cmap=plt.cm.coolwarm, alpha=0.9), ax=ax, label='Personality Value')
-    plt.show()
 
 def calculate_clustering_coefficient(model):
     G = nx.Graph()
@@ -83,50 +56,103 @@ def calculate_clustering_coefficient(model):
     global_clustering = nx.transitivity(G)
     return local_clustering, global_clustering
 
-model = SocialModel(N=100, width=100, height=100, alpha=0.5, max_speed=10.0, break_prob=0.1, phi=0.00005, sphi=0.00005, gamma=0.000)
+def run_simulation(total_frames, phi, sphi, gamma):
+    # 忽略所有警告
+    warnings.filterwarnings('ignore')
+    model = SocialModel(N=100, width=100, height=100, alpha=0.5, max_speed=10.0, break_prob=0.1, phi=phi, sphi=sphi, gamma=gamma)
+    time_steps = []
+    local_clustering_values = []
+    global_clustering_values = []
+    agents_data = []
 
-sns.set_theme(context='talk', style="whitegrid")
-fig, ax = plt.subplots(figsize=(8, 8))
-total_frames = 10000
-time_steps = []
-local_clustering_values = []
-global_clustering_values = []
-ani = animation.FuncAnimation(fig, update, fargs=(model, total_frames, ax, False), frames=total_frames, interval=100, repeat=False)
-plt.show()
+    for frame in range(total_frames):
+        model.step()
+        time_steps.append(frame)
+        local_clustering, global_clustering = calculate_clustering_coefficient(model)
+        local_clustering_values.append(local_clustering)
+        global_clustering_values.append(global_clustering)
 
-# Plot clustering coefficient against time steps
-sns.set(style="whitegrid")
-plt.figure(figsize=(10, 6))
-df = pd.DataFrame({'Time Steps': time_steps, 'Local Clustering Coefficient': local_clustering_values, 'Global Clustering Coefficient': global_clustering_values})
-sns.lineplot(x=time_steps, y=local_clustering_values, label="Local Clustering Coefficient", color='deepskyblue', data=df)
-sns.lineplot(x=time_steps, y=global_clustering_values, label="Global Clustering Coefficient", color='red', data=df)
-plt.title('Clustering Coefficient vs Time Steps')
-plt.xlabel('Time Steps')
-plt.ylabel('Clustering Coefficient')
-plt.legend()
-plt.show()
+    agents = model.schedule.agents
+    for agent in agents:
+        personality = agent.personality
+        agents_data.append({
+            'friends_count': len(agent.friends),
+            'openness': personality.openness,
+            'conscientiousness': personality.conscientiousness,
+            'extraversion': personality.extraversion,
+            'agreeableness': personality.agreeableness,
+            'neuroticism': personality.neuroticism
+        })
 
-# 生成最终的网络图
-G = nx.Graph()
-agents = model.schedule.agents
-pos = {}
-for agent in agents:
-    G.add_node(agent.unique_id)
-    pos[agent.unique_id] = (agent.pos[0], agent.pos[1])
-    for friend in agent.friends:
-        G.add_edge(agent.unique_id, friend.unique_id)
+    df_clustering = pd.DataFrame({
+        'Time Steps': time_steps,
+        'Local Clustering Coefficient': local_clustering_values,
+        'Global Clustering Coefficient': global_clustering_values
+    })
 
-# 绘制度中心性分布图
-plot_degree_centrality_distribution(G)
+    return df_clustering, agents_data
 
-# 根据不同的人格特质生成网络图
-personality_traits = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism']
-for trait in personality_traits:
-    plot_personality_network(G, agents, trait, f'{trait.capitalize()} Network')
+def main():
+    total_frames_list = [3000, 5000]
+    phi_list = [0.0001, 0.001]
+    sphi_list = [0, 0.0001, 0.001]
+    gamma_list = [0, 0.0001, 0.001]
 
-# 计算聚类系数
-local_clustering = nx.average_clustering(G)
-global_clustering = nx.transitivity(G)
+    parameter_combinations = list(itertools.product(total_frames_list, phi_list, sphi_list, gamma_list))
+    sns.set_theme('talk', 'whitegrid')
 
-print(f'Local Clustering Coefficient: {local_clustering}')
-print(f'Global Clustering Coefficient: {global_clustering}')
+    for params in tqdm(parameter_combinations, desc="Running grid search"):
+        total_frames, phi, sphi, gamma = params
+        print(f"Running simulation with parameters: total_frames={total_frames}, phi={phi}, sphi={sphi}, gamma={gamma}")
+        
+        # 并行运行模拟
+        num_simulations = 10
+        results = Parallel(n_jobs=-2)(delayed(run_simulation)(total_frames, phi, sphi, gamma) for _ in range(num_simulations))
+
+        # 合并结果并计算 95% CI
+        df_clustering_list = [result[0] for result in results]
+        agents_data_list = [result[1] for result in results]
+
+        combined_clustering_df = pd.concat(df_clustering_list)
+        combined_agents_data = [item for sublist in agents_data_list for item in sublist]
+
+        clustering_ci_df = combined_clustering_df.groupby('Time Steps').agg(['mean', 'std'])
+        clustering_ci_df.columns = ['_'.join(col).strip() for col in clustering_ci_df.columns.values]
+        clustering_ci_df['Local_CI_lower'] = clustering_ci_df['Local Clustering Coefficient_mean'] - 1.96 * clustering_ci_df['Local Clustering Coefficient_std']
+        clustering_ci_df['Local_CI_upper'] = clustering_ci_df['Local Clustering Coefficient_mean'] + 1.96 * clustering_ci_df['Local Clustering Coefficient_std']
+        clustering_ci_df['Global_CI_lower'] = clustering_ci_df['Global Clustering Coefficient_mean'] - 1.96 * clustering_ci_df['Global Clustering Coefficient_std']
+        clustering_ci_df['Global_CI_upper'] = clustering_ci_df['Global Clustering Coefficient_mean'] + 1.96 * clustering_ci_df['Global Clustering Coefficient_std']
+
+        # 绘制合并结果
+        plt.figure(figsize=(10, 6))
+        sns.lineplot(x=clustering_ci_df.index, y='Local Clustering Coefficient_mean', data=clustering_ci_df, label="Local Clustering Coefficient Mean", color='deepskyblue')
+        plt.fill_between(clustering_ci_df.index, clustering_ci_df['Local_CI_lower'], clustering_ci_df['Local_CI_upper'], color='deepskyblue', alpha=0.3)
+        sns.lineplot(x=clustering_ci_df.index, y='Global Clustering Coefficient_mean', data=clustering_ci_df, label="Global Clustering Coefficient Mean", color='red')
+        plt.fill_between(clustering_ci_df.index, clustering_ci_df['Global_CI_lower'], clustering_ci_df['Global_CI_upper'], color='red', alpha=0.3)
+        plt.title(f'Clustering Coefficient vs Time Steps with 95% CI\n(total_frames={total_frames}, phi={phi}, sphi={sphi}, gamma={gamma})')
+        plt.xlabel('Time Steps')
+        plt.ylabel('Clustering Coefficient')
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, f'clustering_coefficient_vs_time_steps_with_ci_frames{total_frames}_phi{phi}_sphi{sphi}_gamma{gamma}.png'))
+        plt.close()
+
+        # 生成 personality vs. friendship 数量的 lmplot
+        df_agents = pd.DataFrame(combined_agents_data)
+        df_ranked = df_agents.rank(pct=True)
+        personality_traits = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism']
+        colors = ['blue', 'orange', 'red', 'salmon', 'purple']
+        for trait, color in zip(personality_traits, colors):
+            spearman_corr, _ = spearmanr(df_agents['friends_count'], df_agents[trait])
+            plt.figure(figsize=(10, 6))
+            sns.scatterplot(x=trait, y='friends_count', data=df_ranked, alpha=0.5, s=20, color=color)
+            sns.regplot(x=trait, y='friends_count', data=df_ranked, scatter=False, color=color)
+            plt.title(f'Friends Count vs. {trait.capitalize()} (Spearman Corr: {spearman_corr:.2f})\n(total_frames={total_frames}, phi={phi}, sphi={sphi}, gamma={gamma})')
+            plt.xlabel(trait.capitalize())
+            plt.ylabel('Friends Count')
+            plt.tight_layout()
+            plt.savefig(os.path.join(output_dir, f'lmplot_{trait}_frames{total_frames}_phi{phi}_sphi{sphi}_gamma{gamma}.png'))
+            plt.close()
+
+if __name__ == "__main__":
+    main()
