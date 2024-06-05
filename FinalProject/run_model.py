@@ -83,15 +83,15 @@ def calculate_clustering_coefficient(model):
     global_clustering = nx.transitivity(G)
     return local_clustering, global_clustering
 
-model = SocialModel(N=100, width=100, height=100, alpha=0.5, max_speed=10.0, break_prob=0.1, phi=0.00005, sphi=0.00005)
+model = SocialModel(N=100, width=100, height=100, alpha=0.5, max_speed=10.0, break_prob=0.1, phi=0.00005, sphi=0.00005, gamma=0.000)
 
 sns.set_theme(context='talk', style="whitegrid")
 fig, ax = plt.subplots(figsize=(8, 8))
-total_frames = 2000
+total_frames = 10000
 time_steps = []
 local_clustering_values = []
 global_clustering_values = []
-ani = animation.FuncAnimation(fig, update, fargs=(model, total_frames, ax, True), frames=total_frames, interval=100, repeat=False)
+ani = animation.FuncAnimation(fig, update, fargs=(model, total_frames, ax, False), frames=total_frames, interval=100, repeat=False)
 plt.show()
 
 # Plot clustering coefficient against time steps

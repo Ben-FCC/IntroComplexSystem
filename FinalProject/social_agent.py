@@ -5,7 +5,7 @@ import random
 from personality import Personality
 
 class SocialAgent(Agent):
-    def __init__(self, unique_id, model, alpha=0.1, max_speed=3.0, break_prob=0.05, phi=0.01, sphi=0.01):
+    def __init__(self, unique_id, model, alpha=0.1, max_speed=3.0, break_prob=0.05, phi=0.01, sphi=0.01, gamma=0.001):
         super().__init__(unique_id, model)
         self.pos = (random.randrange(model.grid.width), random.randrange(model.grid.height))
 
@@ -24,6 +24,7 @@ class SocialAgent(Agent):
         self.break_prob = break_prob  # 友谊断裂基础概率
         self.phi = phi  # 控制友谊形成概率的系数
         self.sphi = sphi  # 控制友谊形成概率的系数
+        self.gamma = gamma  # 控制性格的速率
 
     def generate_personality_traits(self):
         mean = [0, 0, 0, 0, 0]
@@ -49,6 +50,12 @@ class SocialAgent(Agent):
 
         # 检查并断开友谊
         self.break_friendships()
+
+        # Calculate the average personality of friends
+        avg_personality = self.calculate_average_personality()
+
+        # Adjust the agent's personality towards the average personality of friends
+        self.adjust_personality(avg_personality)
 
     def move(self):
         # 基于速度方向移动
@@ -131,3 +138,29 @@ class SocialAgent(Agent):
                 self.friends.remove(friend)
                 if self in friend.friends:
                     friend.friends.remove(self)
+
+    def calculate_average_personality(self):
+        num_friends = len(self.friends)
+        if num_friends == 0:
+            return None
+
+        total_personality = np.zeros(5)
+        for friend in self.friends:
+            total_personality += np.array([friend.personality.openness, friend.personality.conscientiousness,
+                                           friend.personality.extraversion, friend.personality.agreeableness,
+                                           friend.personality.neuroticism])
+
+        avg_personality = total_personality / num_friends
+        return avg_personality
+
+    def adjust_personality(self, avg_personality):
+        if avg_personality is not None:
+            new_openness = self.personality.openness + self.gamma * (avg_personality[0] - self.personality.openness)
+            new_conscientiousness = self.personality.conscientiousness + self.gamma * (avg_personality[1] - self.personality.conscientiousness)
+            new_extraversion = self.personality.extraversion + self.gamma * (avg_personality[2] - self.personality.extraversion)
+            new_agreeableness = self.personality.agreeableness + self.gamma * (avg_personality[3] - self.personality.agreeableness)
+            new_neuroticism = self.personality.neuroticism + self.gamma * (avg_personality[4] - self.personality.neuroticism)
+
+            # Ensure personality traits are within [0, 1] range
+            personality_traits = np.clip(np.array([new_openness, new_conscientiousness, new_extraversion, new_agreeableness, new_neuroticism]), 0, 1)
+            self.personality = Personality(*personality_traits)
