@@ -25,10 +25,10 @@ def calculate_clustering_coefficient(model):
     return local_clustering, global_clustering
 
 # Define the range of parameters using log scale
-phi_values = [0.00001, 0.0001]
+phi_values = [0.00001]
 sphi_values = np.logspace(-5, 0, 10)
 gamma_values = np.logspace(-5, 0, 10)
-num_simulations = 10  # Number of Monte Carlo simulations
+num_simulations = 3  # Number of Monte Carlo simulations
 
 # Function to run the model and collect clustering coefficients
 def run_simulation(phi, sphi, gamma):
@@ -38,7 +38,7 @@ def run_simulation(phi, sphi, gamma):
 
     for _ in range(num_simulations):
         model = SocialModel(100, 100, 100, phi=phi, sphi=sphi, gamma=gamma)
-        for _ in range(10):
+        for _ in range(3000):
             model.step()
         local_clustering, global_clustering = calculate_clustering_coefficient(model)
         local_clustering_list.append(local_clustering)
